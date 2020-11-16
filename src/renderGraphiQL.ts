@@ -30,6 +30,7 @@ function safeSerialize(data: string | boolean | null | undefined): string {
 }
 
 // Implemented as Babel transformation, see ../resources/load-statically-from-npm.js
+// 牛批
 declare function loadFileStaticallyFromNPM(npmPath: string): string;
 
 /**
@@ -43,6 +44,7 @@ export function renderGraphiQL(
   data: GraphiQLData,
   options?: GraphiQLOptions,
 ): string {
+  // 用来渲染对应部分的组件名称？
   const queryString = data.query;
   const variablesString =
     data.variables != null ? JSON.stringify(data.variables, null, 2) : null;

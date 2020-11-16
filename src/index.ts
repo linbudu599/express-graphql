@@ -1,7 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 
 import type {
+  // TODO:
   ASTVisitor,
+  // gql`` 的返回值？
   DocumentNode,
   ValidationRule,
   ValidationContext,
@@ -13,6 +15,8 @@ import type {
   GraphQLTypeResolver,
   GraphQLFormattedError,
 } from 'graphql';
+
+// 内容协商
 import accepts from 'accepts';
 import httpError from 'http-errors';
 import type { HttpError } from 'http-errors';
@@ -35,7 +39,10 @@ import { renderGraphiQL } from './renderGraphiQL';
 // `url` is always defined for IncomingMessage coming from http.Server
 type Request = IncomingMessage & { url: string };
 
+// TODO: 响应中的json方法是？
 type Response = ServerResponse & { json?: (data: unknown) => void };
+
+// 好家伙
 type MaybePromise<T> = Promise<T> | T;
 
 /**
@@ -45,6 +52,8 @@ type MaybePromise<T> = Promise<T> | T;
  * Options can be provided as an Object, a Promise for an Object, or a Function
  * that returns an Object or a Promise for an Object.
  */
+
+// 选项 / Promise<选项> / 返回选项的函数 / 返回Promise<选项>的函数
 export type Options =
   | ((
       request: Request,
@@ -53,6 +62,9 @@ export type Options =
     ) => MaybePromise<OptionsData>)
   | MaybePromise<OptionsData>;
 
+// 通过schema等选项来配置服务器中间件
+// NOTE: express-graphql是以Express服务器中间件的形式接入的 它本身并不是一个独立的服务器
+// 因此“服务器中间件指的就是自己”
 export interface OptionsData {
   /**
    * A GraphQL schema from graphql-js.
@@ -67,23 +79,30 @@ export interface OptionsData {
   /**
    * An object to pass as the rootValue to the graphql() function.
    */
+  // XXX resolver chain顶层的resolver的parent参数
+  // 似乎不是？？ 用例里是resolvers？？
+  // get Apollo中才是顶级ObjectType的resolver的parent参数
+  // TODO: graphql()方法是？
   rootValue?: unknown;
 
   /**
    * A boolean to configure whether the output should be pretty-printed.
    */
+  // TODO: 是否格式化输出，输出是？
   pretty?: boolean;
 
   /**
    * An optional array of validation rules that will be applied on the document
    * in additional to those defined by the GraphQL spec.
    */
+  // TODO:
   validationRules?: ReadonlyArray<(ctx: ValidationContext) => ASTVisitor>;
 
   /**
    * An optional function which will be used to validate instead of default `validate`
    * from `graphql-js`.
    */
+  // TODO: 应该是和上面一个选项有关的
   customValidateFn?: (
     schema: GraphQLSchema,
     documentAST: DocumentNode,
@@ -94,6 +113,7 @@ export interface OptionsData {
    * An optional function which will be used to execute instead of default `execute`
    * from `graphql-js`.
    */
+  // 覆盖原生GraphQL的execute方法
   customExecuteFn?: (args: ExecutionArgs) => MaybePromise<ExecutionResult>;
 
   /**
@@ -101,17 +121,20 @@ export interface OptionsData {
    * fulfilling a GraphQL operation. If no function is provided, GraphQL's
    * default spec-compliant `formatError` function will be used.
    */
+  // 错误格式化
   customFormatErrorFn?: (error: GraphQLError) => GraphQLFormattedError;
 
   /**
    * An optional function which will be used to create a document instead of
    * the default `parse` from `graphql-js`.
    */
+  // 覆盖原生的parse方法来基于DSL创建DocumentNode
   customParseFn?: (source: Source) => DocumentNode;
 
   /**
    * `formatError` is deprecated and replaced by `customFormatErrorFn`. It will
    *  be removed in version 1.0.0.
+   * @deprecated
    */
   formatError?: (error: GraphQLError) => GraphQLFormattedError;
 
@@ -125,6 +148,7 @@ export interface OptionsData {
    *
    * This function may be async.
    */
+  // FIXME: extension 还没搞过 先跳过
   extensions?: (
     info: RequestInfo,
   ) => MaybePromise<undefined | { [key: string]: unknown }>;
@@ -133,6 +157,7 @@ export interface OptionsData {
    * A boolean to optionally enable GraphiQL mode.
    * Alternatively, instead of `true` you can pass in an options object.
    */
+  // 好家伙
   graphiql?: boolean | GraphiQLOptions;
 
   /**
@@ -140,6 +165,9 @@ export interface OptionsData {
    * If not provided, the default field resolver is used (which looks for a
    * value or method on the source value with the field's name).
    */
+  // PUZZLE: 默认的解析器？当没有schema匹配时使用？和正常的resolver接收同样的参数？
+  // 那src是啥
+  // ???为啥匹配到了field还是会应用这个解析器
   fieldResolver?: GraphQLFieldResolver<unknown, unknown>;
 
   /**
@@ -147,12 +175,16 @@ export interface OptionsData {
    * If not provided, the default type resolver is used (which looks for a
    * `__typename` field or alternatively calls the `isTypeOf` method).
    */
+  // PUZZLE: 当schema中没有类型的默认解析器？
+  // 等待验证
   typeResolver?: GraphQLTypeResolver<unknown, unknown>;
 }
 
 /**
  * All information about a GraphQL request.
  */
+// 原本以为是发起的GraphQL请求的body参数 看起来并不是 那个是GraphQLParams
+// 在GraphiQL的实验发现其参数就query（query和mutation都被包裹在这里）和variables
 export interface RequestInfo {
   /**
    * The parsed GraphQL document.
@@ -186,10 +218,13 @@ type Middleware = (request: Request, response: Response) => Promise<void>;
  * Middleware for express; takes an options object or function as input to
  * configure behavior, and returns an express middleware.
  */
+
+// 这个函数返回的就是一个中间件
 export function graphqlHTTP(options: Options): Middleware {
   devAssert(options != null, 'GraphQL middleware requires options.');
 
   return async function graphqlMiddleware(
+    // 这个应该是来自于Express中间件队列依次处理的请求和响应
     request: Request,
     response: Response,
   ): Promise<void> {
@@ -197,6 +232,7 @@ export function graphqlHTTP(options: Options): Middleware {
     let params: GraphQLParams | undefined;
     let showGraphiQL = false;
     let graphiqlOptions;
+    // 默认使用原生
     let formatErrorFn = formatError;
     let pretty = false;
     let result: ExecutionResult;
@@ -204,8 +240,20 @@ export function graphqlHTTP(options: Options): Middleware {
     try {
       // Parse the Request to get GraphQL request parameters.
       try {
+        // TODO: 配置解析过程
         params = await getGraphQLParams(request);
+        console.log(params);
+        // query {
+        //   hello
+        //  }
+        // {
+        //   query: 'query {\n hello\n}',
+        //   variables: null,
+        //   operationName: null,
+        //   raw: false
+        // }
       } catch (error: unknown) {
+        // TODO:
         // When we failed to parse the GraphQL parameters, we still need to get
         // the options object, so make an options call to resolve just that.
         const optionsData = await resolveOptions();
@@ -218,6 +266,7 @@ export function graphqlHTTP(options: Options): Middleware {
       }
 
       // Then, resolve the Options to get OptionsData.
+      // 解析配置
       const optionsData: OptionsData = await resolveOptions(params);
 
       // Collect information from the options data object.
@@ -254,6 +303,7 @@ export function graphqlHTTP(options: Options): Middleware {
 
       // Get GraphQL params from the request and POST body data.
       const { query, variables, operationName } = params;
+      // 需要能展示并且开启了此选项
       showGraphiQL = canDisplayGraphiQL(request, params) && graphiql !== false;
       if (typeof graphiql !== 'boolean') {
         graphiqlOptions = graphiql;
@@ -261,6 +311,10 @@ export function graphqlHTTP(options: Options): Middleware {
 
       // If there is no query, but GraphiQL will be displayed, do not produce
       // a result, otherwise return a 400: Bad Request.
+      // TODO: 在返回GraphiQL时还会有一个operationName: "IntrospectionQuery"的请求
+      // 用于探知所有的元信息来进行渲染DOCS部分
+      // 这个还需要再看看
+      // TODO: 如何复现这个场景？
       if (query == null) {
         if (showGraphiQL) {
           return respondWithGraphiQL(response, graphiqlOptions);
@@ -280,6 +334,7 @@ export function graphqlHTTP(options: Options): Middleware {
       // Parse source to AST, reporting any syntax error.
       let documentAST;
       try {
+        // 原生GraphQL的Source方法
         documentAST = parseFn(new Source(query, 'GraphQL request'));
       } catch (syntaxError: unknown) {
         // Return 400: Bad Request if any syntax errors errors exist.
@@ -290,6 +345,7 @@ export function graphqlHTTP(options: Options): Middleware {
 
       // Validate AST, reporting any errors.
       const validationErrors = validateFn(schema, documentAST, [
+        // 内置的规则集
         ...specifiedRules,
         ...validationRules,
       ]);
@@ -302,6 +358,7 @@ export function graphqlHTTP(options: Options): Middleware {
       }
 
       // Only query operations are allowed on GET requests.
+      // GET请求只能走query操作，类似RESTFul规范
       if (request.method === 'GET') {
         // Determine if this GET request will perform a non-query.
         const operationAST = getOperationAST(documentAST, operationName);
@@ -309,6 +366,7 @@ export function graphqlHTTP(options: Options): Middleware {
           // If GraphiQL can be shown, do not perform this query, but
           // provide it to GraphiQL so that the requester may perform it
           // themselves if desired.
+          // PUZZLE: 如果此时开启了GraphiQL选项 那么就把内容返回给GraphiQL 供请求者自己执行
           if (showGraphiQL) {
             return respondWithGraphiQL(response, graphiqlOptions, params);
           }
@@ -323,6 +381,7 @@ export function graphqlHTTP(options: Options): Middleware {
       }
 
       // Perform the execution, reporting any errors creating the context.
+      // ！！！执行！
       try {
         result = await executeFn({
           schema,
@@ -343,6 +402,7 @@ export function graphqlHTTP(options: Options): Middleware {
 
       // Collect and apply any metadata extensions if a function was provided.
       // https://graphql.github.io/graphql-spec/#sec-Response-Format
+      // TODO: 元数据上的扩展
       if (extensionsFn) {
         const extensions = await extensionsFn({
           document: documentAST,
@@ -398,6 +458,7 @@ export function graphqlHTTP(options: Options): Middleware {
     }
 
     // Format any encountered errors.
+    // 是有可能结果和错误一起返回的，比如部分字段（对象类型）出现错误?
     const formattedResult: FormattedExecutionResult = {
       ...result,
       errors: result.errors?.map(formatErrorFn),
@@ -405,6 +466,7 @@ export function graphqlHTTP(options: Options): Middleware {
 
     // If allowed to show GraphiQL, present it instead of JSON.
     if (showGraphiQL) {
+      // 意思并不是每次请求都返回带着结果的GraphiQL，而是当本次请求就带着查询参数
       return respondWithGraphiQL(
         response,
         graphiqlOptions,
@@ -423,10 +485,12 @@ export function graphqlHTTP(options: Options): Middleware {
       sendResponse(response, 'application/json', payload);
     }
 
+    // 解析配置
     async function resolveOptions(
       requestParams?: GraphQLParams,
     ): Promise<OptionsData> {
       const optionsResult = await Promise.resolve(
+        // 就是一开始传入给这个中间件的options
         typeof options === 'function'
           ? options(request, response, requestParams)
           : options,
@@ -465,6 +529,7 @@ function respondWithGraphiQL(
   return sendResponse(response, 'text/html', payload);
 }
 
+// 这个才是查询时携带的
 export interface GraphQLParams {
   query: string | null;
   variables: { readonly [name: string]: unknown } | null;
@@ -520,6 +585,8 @@ export async function getGraphQLParams(
 function canDisplayGraphiQL(request: Request, params: GraphQLParams): boolean {
   // If `raw` false, GraphiQL mode is not enabled.
   // Allowed to show GraphiQL if not requested as raw and this request prefers HTML over JSON.
+  // 如果请求的是原生并且请求更期望接收html文件
+  // accepts 返回请求接收的内容类型（按照客户端偏好顺序？）
   return !params.raw && accepts(request).types(['json', 'html']) === 'html';
 }
 
