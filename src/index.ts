@@ -69,41 +69,42 @@ export interface OptionsData {
   /**
    * A GraphQL schema from graphql-js.
    */
+  // 使用buildSchema方法生成的schema，TypeGraphQL的buildSchema同理
   schema: GraphQLSchema;
 
   /**
    * A value to pass as the context to this middleware.
    */
+  // 在resolver组、fieldResolver、typeResolver、extensions中都能获取到
   context?: unknown;
 
   /**
    * An object to pass as the rootValue to the graphql() function.
    */
-  // XXX resolver chain顶层的resolver的parent参数
-  // 似乎不是？？ 用例里是resolvers？？
-  // get Apollo中才是顶级ObjectType的resolver的parent参数
-  // 好像也不是 这里的rootValue就像Apollo中的rootValue+resolvers组
+  // 和Apollo中的rootValue不同，会被作为resolver链入口的首个resolver的parent参数
+  // express-graphql中的rootValue就是resolvers，并且其中的resolver没有parent参数
+  // 可以理解为parent是Apollo实现的
   // TODO: graphql()方法是？
   rootValue?: unknown;
 
   /**
    * A boolean to configure whether the output should be pretty-printed.
    */
-  // TODO: 是否格式化输出，输出是？
+  // 是否格式化输出
   pretty?: boolean;
 
   /**
    * An optional array of validation rules that will be applied on the document
    * in additional to those defined by the GraphQL spec.
    */
-  // TODO:
+  // 自定义schema验证规则
   validationRules?: ReadonlyArray<(ctx: ValidationContext) => ASTVisitor>;
 
   /**
    * An optional function which will be used to validate instead of default `validate`
    * from `graphql-js`.
    */
-  // TODO: 应该是和上面一个选项有关的
+  // 自定义验证函数
   customValidateFn?: (
     schema: GraphQLSchema,
     documentAST: DocumentNode,
@@ -114,7 +115,7 @@ export interface OptionsData {
    * An optional function which will be used to execute instead of default `execute`
    * from `graphql-js`.
    */
-  // 覆盖原生GraphQL的execute方法
+  // 重载原生GraphQL的execute方法
   customExecuteFn?: (args: ExecutionArgs) => MaybePromise<ExecutionResult>;
 
   /**
@@ -122,7 +123,7 @@ export interface OptionsData {
    * fulfilling a GraphQL operation. If no function is provided, GraphQL's
    * default spec-compliant `formatError` function will be used.
    */
-  // 错误格式化
+  // 错误格式化函数
   customFormatErrorFn?: (error: GraphQLError) => GraphQLFormattedError;
 
   /**
@@ -150,7 +151,7 @@ export interface OptionsData {
    *
    * This function may be async.
    */
-  // 扩展， 没啥要说的， 就是和extensions同级的字段
+  // 扩展， 没啥要说的， 就是和data同级的字段（extensions）
   extensions?: (
     info: RequestInfo,
   ) => MaybePromise<undefined | { [key: string]: unknown }>;
@@ -167,6 +168,7 @@ export interface OptionsData {
    * If not provided, the default field resolver is used (which looks for a
    * value or method on the source value with the field's name).
    */
+  // 见README中的说明， typeResolver同
   fieldResolver?: GraphQLFieldResolver<unknown, unknown>;
 
   /**
@@ -311,7 +313,6 @@ export function graphqlHTTP(options: Options): Middleware {
       // TODO: 在返回GraphiQL时还会有一个operationName: "IntrospectionQuery"的请求
       // 用于探知所有的元信息来进行渲染DOCS部分
       // 这个还需要再看看
-      // TODO: 如何复现这个场景？
       if (query == null) {
         if (showGraphiQL) {
           return respondWithGraphiQL(response, graphiqlOptions);
@@ -399,7 +400,6 @@ export function graphqlHTTP(options: Options): Middleware {
 
       // Collect and apply any metadata extensions if a function was provided.
       // https://graphql.github.io/graphql-spec/#sec-Response-Format
-      // TODO: 元数据上的扩展
       if (extensionsFn) {
         const extensions = await extensionsFn({
           document: documentAST,
