@@ -1,0 +1,20 @@
+{
+  hello(arg: "xxx")
+  outOfField
+  guess {
+    __typename
+    ... on A {
+      fieldA
+    }
+    ... on B {
+      fieldB
+    }
+  }
+  nest {
+    field1
+    field2
+    field3 {
+      field3_1
+    }
+  }
+}

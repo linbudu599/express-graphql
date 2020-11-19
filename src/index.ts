@@ -82,6 +82,7 @@ export interface OptionsData {
   // XXX resolver chain顶层的resolver的parent参数
   // 似乎不是？？ 用例里是resolvers？？
   // get Apollo中才是顶级ObjectType的resolver的parent参数
+  // 好像也不是 这里的rootValue就像Apollo中的rootValue+resolvers组
   // TODO: graphql()方法是？
   rootValue?: unknown;
 
@@ -129,6 +130,7 @@ export interface OptionsData {
    * the default `parse` from `graphql-js`.
    */
   // 覆盖原生的parse方法来基于DSL创建DocumentNode
+  // 知识盲区
   customParseFn?: (source: Source) => DocumentNode;
 
   /**
@@ -148,7 +150,7 @@ export interface OptionsData {
    *
    * This function may be async.
    */
-  // FIXME: extension 还没搞过 先跳过
+  // 扩展， 没啥要说的， 就是和extensions同级的字段
   extensions?: (
     info: RequestInfo,
   ) => MaybePromise<undefined | { [key: string]: unknown }>;
@@ -165,9 +167,6 @@ export interface OptionsData {
    * If not provided, the default field resolver is used (which looks for a
    * value or method on the source value with the field's name).
    */
-  // PUZZLE: 默认的解析器？当没有schema匹配时使用？和正常的resolver接收同样的参数？
-  // 那src是啥
-  // ???为啥匹配到了field还是会应用这个解析器
   fieldResolver?: GraphQLFieldResolver<unknown, unknown>;
 
   /**
@@ -175,8 +174,6 @@ export interface OptionsData {
    * If not provided, the default type resolver is used (which looks for a
    * `__typename` field or alternatively calls the `isTypeOf` method).
    */
-  // PUZZLE: 当schema中没有类型的默认解析器？
-  // 等待验证
   typeResolver?: GraphQLTypeResolver<unknown, unknown>;
 }
 
@@ -240,9 +237,9 @@ export function graphqlHTTP(options: Options): Middleware {
     try {
       // Parse the Request to get GraphQL request parameters.
       try {
-        // TODO: 配置解析过程
+        // TODO: 配置的解析过程
         params = await getGraphQLParams(request);
-        console.log(params);
+        // console.log(params);
         // query {
         //   hello
         //  }
